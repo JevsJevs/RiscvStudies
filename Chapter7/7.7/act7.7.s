@@ -3,6 +3,7 @@
 
 .section .bss
 putsCharBuffer: .skip 1   #Arbitrarily set size
+getsBuffer: .skip 512
 
 .section .data
 test: .string "this is a null terminated string"
@@ -18,11 +19,175 @@ _start:
     li a7, 93
     ecall
 
+itoa:
+#char* itoa(int val, char* str, int base)
+#This implementation assumes base = 10 || base = 16 only
+
+    mv t1, a1                       #stores str start adr
+    li a4, 16
+    bne a3, a4, itoaBaseNot16 
+        #Sets str first digits to "0x"
+        li a4, 0x30
+        sb a4, 0(a1) 
+        li a4, 0x7d
+        sb a4, 1(a1) 
+        addi a1, a1, 2
+    itoaBaseNot16:
+
+    li a4, 10
+    bne a3, a4, itoaBaseNot10
+        bgez a0, itoaSignedNotNegative
+            li a4, -1
+            mul a0, a0, a4 
+            li a4, 0x2d
+            sb a4, 0(a1)
+            addi a4, a4, 1
+        itoaSignedNotNegative:
+    itoaBaseNot10:
+
+    li a5, 10
+    itoaParsingLoop:
+        remu a4, a0, a2
+        blt a4, a5, itoaIfDecimalDigitThen  #if remainder > 10
+            addi a4, a4, 0x57               #corrects value to [a, f] ascii chars
+            j itoaIfDecimalDigitEndIf
+        itoaIfDecimalDigitThen:             #else
+            addi a4, a4, 0x30               #corrects value to [0, 9] ascii chars
+        itoaIfDecimalDigitEndIf:
+        
+        divu a0, a0, a2
+
+        sb a4, 0(a1)
+        addi a1, a1, 1
+    bnez a0, itoaParsingLoop
+
+    sb zero, 0(a1)                          #null terminates string
+
+    #load in routine return value = str start adr
+    mv a0, t1
+
+    ret    
+
+atoi:
+#int atoi(const char* str)
+    mv a1, a0
+    atoiWSloop:
+        addi sp, sp, -8
+        sw a1, 4(sp)
+        sw ra, 0(sp)
+
+        lb a0, 0(a1)
+        
+        jal isspace
+
+        mv t1, a0
+        
+        lw ra, 0(sp)
+        lw a1, 4(sp)
+        addi sp, sp, 8
+
+        beqz t1, atoiOptionalSign
+        
+        addi a1, a1, 1
+    atoiWSEndLoop:
+
+    #optional plus minus
+    atoiOptionalSign:
+    li a2, 0x2d         #'-' char ascii
+    li a3, 0x2b         #'+' char ascii
+    li t1, 1            #final num to multiply
+
+    lb a0, 0(a1) 
+    bne a0, a2, atoiIfOptionalSign  
+        #if char read == '-' then t1 = -1 (will multiply final number by this register) 
+        li t1, -1
+        addi a1, a1, 1
+        j atoiIfOptionalSignEndIf
+    atoiIfOptionalSign:
+    bne a0, a3, atoiIfOptionalSignEndIf
+        addi a1, a1, 1
+    atoiIfOptionalSignEndIf:
+
+    mv a2, a1
+    li a3, 0x30
+    li a4, 0x3A
+    li t2, 1
+    li t3, 10
+
+    atoiDigitCounterLoop:
+        lb a0, 0(a1)
+        blt a0, a3, atoiDigitCounterLoopEnd
+        bge a0, a4, atoiDigitCounterLoopEnd
+        addi a1, a1, 1
+        mul t2, t2, t3                      #For each char passed
+        j atoiDigitCounterLoop
+    atoiDigitCounterLoopEnd:
+    div t2, t2, 10                          #correction because extra multiplication
 
 
+    li a0, 0
+    mv a1, a2                               #retrieve into a1 digit seqence start
+    atoiCharToIntLoop:
+        beqz t2, atoiCharToIntLoopEnd
+        lb a2, 0(a1)
+        addi a2, a2, -0x30
+        mul a0, a0, t2                      #val = di * pow
+        div t2, t2, t3                      #pow = pow/10 
+        addi a1, a1, 1
+    atoiCharToIntLoopEnd:
+
+    mul a0, a0, t1
+    ret
+
+isspace:
+#int isspace(int c)
+    li a1, 0x20
+    li a2, 0x9
+    li a3, 0xa
+    li a4, 0xb
+    li a5, 0xc
+    li a6, 0xd
+    
+    beq a0, a1, isWhiteSpace
+    beq a0, a2, isWhiteSpace
+    beq a0, a3, isWhiteSpace
+    beq a0, a4, isWhiteSpace
+    beq a0, a5, isWhiteSpace
+    beq a0, a6, isWhiteSpace
+
+    li a0, 0
+    ret
+
+    isWhiteSpace:
+    li a0, 1
+    ret
+
+gets:
+#char* gets(char* str)
+    li t2, 10           #temp register to test if char == newline
+    mv t0, a0           #Copies str start adr
+    mv a1, a0           #Load str pointer from a0 to a1, making it the buffer for the read syscall
+    li a0, 0
+    li a2, 1
+    li a7, 63
+    getsCharLoop:
+        ecall
+        lb t1, 0(a1)
+
+        addi a1, a1, 1
+
+        beqz t1, getsCharEndLoop
+        beq t1, t2, getsCharEndLoop
+    getsCharEndLoop:
+    
+    sb zero, 0(a1)
+
+    mv a0, t0 
+    
+    ret
 
 puts:
-#a0 -> 
+#void puts(char* str)
     mv a4, a0
 
     li a0, 1
@@ -52,12 +217,12 @@ puts:
     sb a5, 0(a1)
     ecall
     
-    #a0 = 1 -> success    
+    la a0, 0x0
     ret
 
     putsError:
-    
-    li a0, -1
+
+    la a0, 0x0
     ret
 
 
