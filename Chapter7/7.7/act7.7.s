@@ -1,15 +1,21 @@
 .globl _start
+.globl linked_list_search
+.globl atoi
+.globl itoa
+.globl gets
+.globl exit
 
+.globl puts
 
 .section .bss
 putsCharBuffer: .skip 1   #Arbitrarily set size
-getsBuffer: .skip 512
+buffer: .skip 100
 
 .section .data
 # test: .string "this is a null terminated string"
 #TEST CASES ATOI
 # test: .string "    123af"
-test: .string "-123g"
+# test: .string "-123g"
 # test: .string "+111"
 # test: .string "121"
 # test: .string "aaa"
@@ -19,12 +25,39 @@ test: .string "-123g"
 
 .section .text
 
-
 _start:
     la a0, test
     jal puts
 
-    li a0, 0
+    jal exit
+
+linked_list_search:
+# int linked_list(Node* node, int val)
+    mv a2, a0
+
+    li a3, 0 #node count
+    iterLoop:
+        lw a4, 0(a2)
+        lw a5, 4(a2)
+        add t1, a4, a5
+        beq t1, a1, result
+
+        lw a2, 8(a2)
+        beqz a2, notFound
+        addi a3, a3, 1
+    j iterLoop
+
+    result:
+        mv a0, a3        
+        ret
+
+    notFound:
+        li a0, -1
+        ret
+
+
+exit:
+#void exit(int errCode)
     li a7, 93
     ecall
 
@@ -33,15 +66,6 @@ itoa:
 #This implementation assumes base = 10 || base = 16 only
 
     mv t1, a1                       #stores str absolute start adr
-    li a4, 16
-    bne a2, a4, itoaBaseNot16 
-        #Sets str first digits to "0x"
-        li a4, 0x30
-        sb a4, 0(a1) 
-        li a4, 0x78
-        sb a4, 1(a1) 
-        addi a1, a1, 2
-    itoaBaseNot16:
 
     li a4, 10
     bne a2, a4, itoaBaseNot10
@@ -208,10 +232,10 @@ gets:
     li t2, 10           #temp register to test if char == newline
     mv t0, a0           #Copies str start adr
     mv a1, a0           #Load str pointer from a0 to a1, making it the buffer for the read syscall
-    li a0, 0
     li a2, 1
     li a7, 63
     getsCharLoop:
+        li a0, 0        #Cleans ecall return and sets file descriptor to stdin
         ecall
         lb t1, 0(a1)
 
@@ -219,6 +243,7 @@ gets:
 
         beqz t1, getsCharEndLoop
         beq t1, t2, getsCharEndLoop
+        j getsCharLoop
     getsCharEndLoop:
     
     sb zero, 0(a1)
@@ -265,10 +290,3 @@ puts:
 
     li a0, 0x0
     ret
-
-
-
-
-
-
-
