@@ -1,7 +1,26 @@
-.globl _start
+# .globl _start
+.globl recursive_tree_search
+.globl atoi
+.globl itoa
+.globl gets
+.globl puts
+.globl exit
 
 .section .data
-head_node:
+head_node:_start:
+#     la a0, head_node
+#     li a1, -798
+#     jal recursive_tree_search
+
+    
+#     la a1, buffer
+#     li a2, 10
+#     jal itoa
+
+#     jal puts
+    
+
+#     jal exit
     .word 12
     .word node2
     .word node3
@@ -50,20 +69,20 @@ exit:
 li a7, 93
 ecall
 
-_start:
-    la a0, head_node
-    li a1, -798
-    jal recursive_tree_search
+# _start:
+#     la a0, head_node
+#     li a1, -798
+#     jal recursive_tree_search
 
     
-    la a1, buffer
-    li a2, 10
-    jal itoa
+#     la a1, buffer
+#     li a2, 10
+#     jal itoa
 
-    jal puts
+#     jal puts
     
 
-    jal exit
+#     jal exit
 
 
 
@@ -77,83 +96,60 @@ lw ra, 0(sp)
 addi sp, sp, 4
 
 ret
-# ini local level = 0
-
-# level = prevLev + 1
-
-# #usar frame pointer
-# if node == null 
-# ret
-
-# if
-# base: if a1.val == val ret level
-
-# rts left, val
-# rts right, val
-
-# ret
 
 rts_recursion:
 # int recursive_tree_search(Node* rootNode, int val, int depth)
- 
+    lw a3, 0(a0) 
+    lw a4, 4(a0)
+    lw a5, 8(a0)
 
-######
-# a3 = nodeval
-# a4 = left
-# a5 = right
-lw a3, 0(a0) 
-lw a4, 4(a0)
-lw a5, 8(a0)
+    bnez a0, rtsNullNodeEndIf
+        li a0, 0
+        ret
+    rtsNullNodeEndIf:
 
-bnez a0, rtsNullNodeEndIf
-    li a0, 0
-    ret
-rtsNullNodeEndIf:
+    bne a3, a1, rtsValueFoundEndIf
+        mv a0, a2                       #set return variable to current depth
+        ret 
+    rtsValueFoundEndIf:
 
-bne a3, a1, rtsValueFoundEndIf
-    mv a0, a2                       #set return variable to current depth
-    ret 
-rtsValueFoundEndIf:
-
-#Magia de stack frame
-addi sp, sp, -20
-sw a5, 16(sp)
-sw a4, 12(sp)
-sw a3, 8(sp)
-sw a2, 4(sp)
-sw ra, 0(sp)
-
-
-mv a0, a4
-#a1 remains val
-addi a2, a2, 1
-jal rts_recursion                   #if value != 0 save
-seqz a6, a0                         #a6 = 1 if returned 0
-
-lw ra, 0(sp)
-lw a2, 4(sp)
-lw a3, 8(sp)
-lw a4, 12(sp)
-lw a5, 16(sp)
-
-addi sp, sp, 20
-
-
-beqz a6, rstFoundOnLeftBranch
-    addi sp, sp, -8
+    addi sp, sp, -20
+    sw a5, 16(sp)
+    sw a4, 12(sp)
+    sw a3, 8(sp)
     sw a2, 4(sp)
     sw ra, 0(sp)
 
 
-    mv a0, a5
+    mv a0, a4
+    #a1 remains val
     addi a2, a2, 1
-    jal rts_recursion
+    jal rts_recursion                   #if value != 0 save
+    seqz a6, a0                         #a6 = 1 if returned 0
 
     lw ra, 0(sp)
     lw a2, 4(sp)
-    addi sp, sp, 8
-rstFoundOnLeftBranch:
+    lw a3, 8(sp)
+    lw a4, 12(sp)
+    lw a5, 16(sp)
 
+    addi sp, sp, 20
+
+
+    beqz a6, rstFoundOnLeftBranch
+        addi sp, sp, -8
+        sw a2, 4(sp)
+        sw ra, 0(sp)
+
+
+        mv a0, a5
+        addi a2, a2, 1
+        jal rts_recursion
+
+        lw ra, 0(sp)
+        lw a2, 4(sp)
+        addi sp, sp, 8
+    rstFoundOnLeftBranch:
 ret
 
 
