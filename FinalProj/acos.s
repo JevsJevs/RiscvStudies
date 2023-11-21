@@ -58,11 +58,6 @@ _start:
 .align 4
 int_handler:
   ###### Syscall and Interrupts handler ######
-    csrr t0, mstatus
-    li t1, 0x1800
-    and t0, t1, t0
-    csrw mstatus, t0            # Sets machine mode
-
     csrrw sp, mscratch, sp      #Switch stack pointer to interruption stack
     addi sp, sp, -60
     sw ra, (sp) 
@@ -80,6 +75,11 @@ int_handler:
     sw s0, 48(sp) 
     sw s1, 52(sp) 
     sw s2, 56(sp) 
+
+    csrr t0, mstatus
+    li t1, 0x1800
+    and t0, t1, t0
+    csrw mstatus, t0            # Sets machine mode
 
     li t1, 10
     li t2, 11
@@ -146,6 +146,11 @@ int_handler:
     addi t0, t0, 4 # adds 4 to the return address (to return after ecall) 
     csrw mepc, t0  # stores the return address back on mepc
 
+    csrr t0, mstatus
+    li t1, ~0x1800
+    and t0, t1, t0
+    csrw mstatus, t0            # Sets user mode
+
     lw s2, 56(sp) 
     lw s1, 52(sp) 
     lw s0, 48(sp) 
@@ -164,10 +169,6 @@ int_handler:
     addi sp, sp, 60
     csrrw sp, mscratch, sp      #after retrieving context switch back to program stack
 
-    csrr t0, mstatus
-    li t1, ~0x1800
-    and t0, t1, t0
-    csrw mstatus, t0            # Sets user mode
 
 
     mret           # Recover remaining context (pc <- mepc)
@@ -311,25 +312,32 @@ get_rotation:
 # .globl read_serial
 read_serial:
 #int readSerial(char* buffer, int size)
-    mv a3, a0                       #stores pointer to end of string
+    mv a3, a0                           #stores pointer to end of string
 
     li a2, SERIAL
+    li a4, 0
     readSerialLoop:
         li t1, 1
-        sb t1, 2(a2)                #Start reading by storing 1 into serial read field
+        sb t1, 2(a2)                    #Start reading by storing 1 into serial read field
         readSerialBW:
-            lb t1, 2(a2)
-            # lb t4, 3(a2)
+            lb t1, 2(a2)                #-> Volta a ser 0 se stdin == null?
         bnez t1, readSerialBW
-        lb t2, 3(a2)                #reads ready serial byte
-        beqz t2, readSerialLoopEnd  #if byte == 0 means stdin is empty
-        sb t2, 0(a3)                #stores in end of string
-        addi a3, a3, 1              #increment eos adr
-        sub a4, a3, a0
+        lb t2, 3(a2)                    #reads ready serial byte
+
+        # beq t2, t3, readSerialLoopEnd   #if byte == newline stdin is done
+
+        beqz t2, readSerialLoopEnd      #if byte == 0 means stdin is empty
+        sb t2, 0(a3)                    #stores in end of string
+        addi a3, a3, 1                  #increment eos adr
+
+        # sub a4, a3, a0
+        
+        addi a4, a4, 1                  #bytes read counter
     blt a4, a1, readSerialLoop
     readSerialLoopEnd:
 
-    sub a0, a3, a0
+    # sub a0, a3, a0
+    mv a0, a4
 
     ret
 
@@ -340,33 +348,24 @@ write_serial:
 
     li a2, SERIAL
     li a4, 0
+    li a6, 10
     writeSerialLoop:
         lb t1, 0(a3)                #load string char
         # beqz t1, writeSerialLoopEnd
+        # beq t1, a6, writeSerialLoopEnd
         sb t1, 1(a2)                #stores char on serial buffer
+        
         li t2, 1                    
         sb t2, 0(a2)                #prepares and loads 1 into write register of serial
         writeSerialBW:
             lb t2, 0(a2)            #checks if serial register is 0, meaning byte was written
-            # sb t1, 1(a2)
         bnez t2, writeSerialBW
         addi a3, a3, 1              #increments eos adr
-        addi a4, a4, 1
+        addi a4, a4, 1              #increments byte written counter
 
     blt a4, a1, writeSerialLoop     #Write bytes until 'size' was reached
     # bnez t1, writeSerialLoop   #if last written byte was != '\0' read next char
     writeSerialLoopEnd:
-
-    # li t5, 10
-    # sb t5, 1(a2)
-
-    # li t2, 1
-    # sb t2, 0(a2) 
-    # writeSerialNewLineBW:
-    #     lb t2, 0(a2)
-    # bnez t2, writeSerialNewLineBW
-
-    #must not add newline byte at the end
 
     ret
 

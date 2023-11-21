@@ -2,21 +2,28 @@
 
 .data
 
-testStr: .string "0longString"
+# testStr: .string "0longString"
 
-strNum: .string "450"
+# strNum: .string "450"
 
-altBuf: .skip 50
+# altBuf: .skip 50
 
-buffString: .string "a\n"
+# buffString: .string "a\n"
 
 .text
 
-# .globl main
-# main:
-#     la a0, testStr
 
-#     jal puts
+
+
+.globl set_handbrake
+set_handbrake:
+# int set_handbrake(char value);
+    li a7, 11
+
+    #a0 is byte to set handbrake
+    ecall
+
+    ret
 
 
 .globl set_engine
@@ -104,10 +111,12 @@ get_distance:
 
     add a0, a0, a1
     add a0, a0, a2
+
     
     addi sp, sp, -4
     sw ra, (sp)
 
+    addi a1, zero, 40 
     jal approx_sqrt             # a0-> distance of the points
 
     lw ra, (sp)
@@ -329,23 +338,6 @@ atoi:
 .globl gets
 gets:
 #char* gets(char* str)
-    # addi sp, sp, -8
-    # sw ra, (sp)
-    # sw a0, 4(sp)
-
-
-    # la a1, altBuf
-    # li a2, 10
-    # jal itoa
-
-    # la a0, altBuf
-    # jal puts
-
-    # lw ra, (sp)
-    # lw a0, 4(sp)
-    # addi sp, sp, 8
-
-
     mv t0, a0                                   #Copies str start adr
     mv a3, a0                                   #Load str pointer from a0 to a3, making it the buffer for the read syscall
 
@@ -359,110 +351,20 @@ gets:
         mv a0, a3
         ecall                                   #a0 is byte qty read
 
+        # addi zero, zero, 1
 
-
-        addi zero, zero, 1
-
-        # lb a5, (a3)     #SE REMOVER ISSO MOSTRA OS OUTROS INPUTS
-        # addi sp, sp, -40
-        # sw ra, (sp)
-        # sw a0, 4(sp)
-        # sw a1, 8(sp)
-        # sw a2, 12(sp)
-        # sw a3, 16(sp)
-        # sw a4, 20(sp)
-        # sw a5, 24(sp)
-        # sw a6, 28(sp)
-        # sw a7, 32(sp)
-        # sw t0, 36(sp)
-
-        # # lb a6, (a3
-        # # mv a0, a3
-        # # la a1, altBuf
-        # # li a2, 16
-        # # jal itoa
-        # addi a5, a0, 0x30 
-
-        # la a0, altBuf
-        # # addi a5, a5, 0x1f
-        # sb a5, (a0)
-        # sb zero, 1(a0)
-        # jal puts
-
-
-
-        # lw t0, 36(sp)
-        # lw a7, 32(sp)
-        # lw a6, 28(sp)
-        # lw a5, 24(sp)
-        # lw a4, 20(sp)
-        # lw a3, 16(sp)
-        # lw a2, 12(sp)
-        # lw a1, 8(sp)
-        # lw a0, 4(sp)
-        # lw ra, (sp)
-        # addi sp, sp, 40
-
-        # beqz a0, getsCharEndLoopInputEnd        #if no other byte was read break -> nao incr 3
-
-
-
-        # beqz a5, getsCharEndLoopNewline              #If eof is reached => null terminator
-        beq a5, a4, getsCharEndLoopNewline      #if newline was found end read
-        beqz a0, getsCharEndLoopInputEnd        #if no other byte was read break -> nao incr 3
+        lb a5, (a3)     
+        beq a5, a4, getsCharEndLoop             #if newline was found end read
+        beqz a0, getsCharEndLoop                #if no other byte was read break -> nao incr 3
         addi a3, a3, 1
     j getsCharLoop
-    getsCharEndLoopInputEnd:
-        # addi a3, a3, 1
-    getsCharEndLoopNewline:
-    
-    #tinha um a3 + 1
-
-    # li t6, 0x69
-    # sb t6, 0(a3)
-    # addi a3, a3, 1
+    getsCharEndLoop:
 
     sb zero, (a3)
 
     mv a0, t0 
-
-    # addi sp, sp, -8
-    # sw ra, (sp)
-    # sw a0, 4(sp)
-
-    # li a0, 1
-    # li a1, 14
-    # li a2, 10
-    # li a3, 1 
-    # li a4, 0
-    # li a5, 3
-    # jal get_distance
-
-    # la a1, altBuf
-    # li a2, 10
-    # jal itoa
-
-    # jal puts
-
-    # lw ra, (sp)
-    # lw a0, 4(sp)
-    # addi sp, sp, 4
-    
     ret
 
-
-    # mv a2, a0                       #copies buffer adr to a1
-
-    # li a7, 17
-    # ecall
-
-    # add a3, a2, a0                 #stores in a2 the eos adr
-    
-    # sb zero, (a3)                   #null terminates the string
-
-    # mv a0, a2
-
-    # ret
 
 .globl puts
 puts:
@@ -485,12 +387,8 @@ puts:
 
     addi a1, a1, 1              #add the '\n' to the string size so it is written in the ecall
 
-    # mv t1, a0
-
     li a7, 18
     ecall
-
-    # mv a0, t1
 
     ret
 
